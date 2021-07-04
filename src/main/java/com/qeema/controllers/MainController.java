@@ -38,8 +38,11 @@ import com.qeema.services.RoleService;
 import com.qeema.services.UserDetailsImpl;
 import com.qeema.services.UserService;
 
+import lombok.extern.slf4j.Slf4j;
+
 @CrossOrigin
 @RestController
+@Slf4j
 public class MainController {
 
 	@Autowired
@@ -50,17 +53,19 @@ public class MainController {
 
 	@Autowired
 	RoleService roleService;
-	
+
 	@Autowired
-	AdminService adminService ;
+	AdminService adminService;
 
 	@Autowired
 	AuthenticationManager authenticationManager;
 
+	@Autowired
+	JwtUtils jwtUtils;
+
 	@PostMapping("/api/auth/register")
-	public ResponseEntity register(@RequestBody SignUpRequestDTO signupRequest) {
-		ResponseEntity response;
-		System.out.println(signupRequest);
+	public ResponseEntity<?> register(@RequestBody SignUpRequestDTO signupRequest) {
+
 		if (userService.existsByUsername(signupRequest.getUsername())) {
 			return ResponseEntity.badRequest().body(new Response("400", "Error: Username is already taken!"));
 		}
@@ -69,22 +74,10 @@ public class MainController {
 			return ResponseEntity.badRequest().body(new Response("400", "Error: Email is already in use!"));
 		}
 
-		User user = new User(signupRequest.getName(), signupRequest.getUsername(), signupRequest.getEmail(),
-				encoder.encode(signupRequest.getPassword()));
+		userService.registerUser(signupRequest);
 
-		Set<String> strRoles = signupRequest.getRoles();
-		Set<Role> roles = new HashSet<>();
-		Role a = roleService.findByName("ROLE_USER");
-		strRoles.forEach(role -> {
-			roles.add(roleService.findByName(role));
-		});
-		user.setRoles(roles);
-		userService.save(user);
-		return response = ResponseEntity.ok(new Response("200", "Success Register User"));
+		return ResponseEntity.ok(new Response("200", "Success Register User"));
 	}
-
-	@Autowired
-	JwtUtils jwtUtils;
 
 	@PostMapping("/api/auth/signin")
 	public ResponseEntity<?> authenticateUser(@Valid @RequestBody LoginRequestDTO loginRequest) {
@@ -100,7 +93,7 @@ public class MainController {
 				.collect(Collectors.toList());
 		User user = userService.getUser(loginRequest.getUsername());
 		userService.saveLoginHistory(user);
-		userService.addLoggedInUser(user) ;
+		userService.addLoggedInUser(user);
 		return ResponseEntity.ok(new JWTResponseDTO(token, userDetails.getId(), userDetails.getUsername(),
 				userDetails.getEmail(), roles));
 	}
@@ -118,26 +111,24 @@ public class MainController {
 	@GetMapping("/api/auth/logged")
 	@PreAuthorize("hasRole('ADMIN')")
 	public ResponseEntity<?> getLoggedInUsers() {
-		
+
 		return ResponseEntity.ok().body(adminService.getCurrentLoggedInUsers());
 	}
-	
-	
+
 	@GetMapping("/api/auth/registered")
 	@PreAuthorize("hasRole('ADMIN')")
 	public ResponseEntity<?> getRegisteredUsers() {
-		
+
 		return ResponseEntity.ok().body(adminService.getRegisteredUsers());
 	}
-	
+
 	@GetMapping("/api/auth/logout")
 	@PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
 	public ResponseEntity<?> signoutUser(@RequestParam(value = "username", required = true) String username) {
-		if (userService.logoutUserByUserName(username) )
-		return ResponseEntity.ok().body(new Response("200", "logout successfull"));
+		if (userService.logoutUserByUserName(username))
+			return ResponseEntity.ok().body(new Response("200", "logout successfull"));
 		else
 			return ResponseEntity.badRequest().body(new Response("400", "couldn't delete"));
 	}
-	
 
 }

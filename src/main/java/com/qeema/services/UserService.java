@@ -1,15 +1,20 @@
 package com.qeema.services;
 
 import java.sql.Timestamp;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import com.qeema.dto.LoginHistoryDTO;
+import com.qeema.dto.SignUpRequestDTO;
 import com.qeema.model.LoggedInUsers;
 import com.qeema.model.LoginHistory;
+import com.qeema.model.Role;
 import com.qeema.model.User;
 import com.qeema.respositories.LoggedInUsersRepository;
 import com.qeema.respositories.LoginHistoryRepository;
@@ -17,6 +22,14 @@ import com.qeema.respositories.UserRepository;
 
 @Service
 public class UserService {
+	
+	@Autowired
+	PasswordEncoder encoder;
+
+
+	@Autowired
+	RoleService roleService;
+
 
 	@Autowired
 	UserRepository userRepository;
@@ -41,6 +54,22 @@ public class UserService {
 	{
 		return userRepository.save(user);
 	}
+	public User registerUser (SignUpRequestDTO signupRequest)
+	{
+		User user = new User(signupRequest.getName(), signupRequest.getUsername(), signupRequest.getEmail(),
+				encoder.encode(signupRequest.getPassword()));
+
+		Set<String> strRoles = signupRequest.getRoles();
+		Set<Role> roles = new HashSet<>();
+		Role a = roleService.findByName("ROLE_USER");
+		strRoles.forEach(role -> {
+			roles.add(roleService.findByName(role));
+		});
+		user.setRoles(roles);
+		return save(user);
+
+	}
+	
 	
 	public User getUser(String username)
 	{
