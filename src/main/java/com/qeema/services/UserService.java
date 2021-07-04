@@ -7,6 +7,7 @@ import java.util.Optional;
 import java.util.Set;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -70,7 +71,8 @@ public class UserService {
 
 	}
 	
-	
+
+	@Cacheable(value = "User", key = "#username" , sync = true)
 	public User getUser(String username)
 	{
 		return userRepository.findOneByUsername(username);

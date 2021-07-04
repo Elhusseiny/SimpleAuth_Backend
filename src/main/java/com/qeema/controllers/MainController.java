@@ -20,6 +20,7 @@ import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -42,6 +43,7 @@ import lombok.extern.slf4j.Slf4j;
 
 @CrossOrigin
 @RestController
+@RequestMapping("/api/auth")
 @Slf4j
 public class MainController {
 
@@ -63,72 +65,102 @@ public class MainController {
 	@Autowired
 	JwtUtils jwtUtils;
 
-	@PostMapping("/api/auth/register")
+	@PostMapping("/register")
 	public ResponseEntity<?> register(@RequestBody SignUpRequestDTO signupRequest) {
 
-		if (userService.existsByUsername(signupRequest.getUsername())) {
-			return ResponseEntity.badRequest().body(new Response("400", "Error: Username is already taken!"));
+		try {
+			if (userService.existsByUsername(signupRequest.getUsername())) {
+				return ResponseEntity.badRequest().body(new Response("400", "Error: Username is already taken!"));
+			}
+
+			if (userService.existsByEmail(signupRequest.getEmail())) {
+				return ResponseEntity.badRequest().body(new Response("400", "Error: Email is already in use!"));
+			}
+
+			userService.registerUser(signupRequest);
+			log.info("user " + signupRequest.getUsername() + " registered successfully");
+			return ResponseEntity.ok(new Response("200", "Success Register User"));
+
+		} catch (Exception e) {
+			log.error("exception in registering user " + signupRequest.getUsername(), e);
+			return ResponseEntity.badRequest().body(new Response("400", "Registering failed"));
 		}
-
-		if (userService.existsByEmail(signupRequest.getEmail())) {
-			return ResponseEntity.badRequest().body(new Response("400", "Error: Email is already in use!"));
-		}
-
-		userService.registerUser(signupRequest);
-
-		return ResponseEntity.ok(new Response("200", "Success Register User"));
 	}
 
-	@PostMapping("/api/auth/signin")
+	@PostMapping("/signin")
 	public ResponseEntity<?> authenticateUser(@Valid @RequestBody LoginRequestDTO loginRequest) {
 
-		Authentication authentication = authenticationManager.authenticate(
-				new UsernamePasswordAuthenticationToken(loginRequest.getUsername(), loginRequest.getPassword()));
+		try {
+			Authentication authentication = authenticationManager.authenticate(
+					new UsernamePasswordAuthenticationToken(loginRequest.getUsername(), loginRequest.getPassword()));
 
-		SecurityContextHolder.getContext().setAuthentication(authentication);
-		String token = jwtUtils.generateJwtToken(authentication);
+			SecurityContextHolder.getContext().setAuthentication(authentication);
+			String token = jwtUtils.generateJwtToken(authentication);
 
-		UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
-		List<String> roles = userDetails.getAuthorities().stream().map(item -> item.getAuthority())
-				.collect(Collectors.toList());
-		User user = userService.getUser(loginRequest.getUsername());
-		userService.saveLoginHistory(user);
-		userService.addLoggedInUser(user);
-		return ResponseEntity.ok(new JWTResponseDTO(token, userDetails.getId(), userDetails.getUsername(),
-				userDetails.getEmail(), roles));
+			UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
+			List<String> roles = userDetails.getAuthorities().stream().map(item -> item.getAuthority())
+					.collect(Collectors.toList());
+			User user = userService.getUser(loginRequest.getUsername());
+			userService.saveLoginHistory(user);
+			userService.addLoggedInUser(user);
+			return ResponseEntity.ok(new JWTResponseDTO(token, userDetails.getId(), userDetails.getUsername(),
+					userDetails.getEmail(), roles));
+		} catch (Exception e) {
+			log.error("singing in failed for user" + loginRequest.getUsername());
+			return ResponseEntity.badRequest().body(new Response("400", "signing in failed"));
+		}
 	}
 
-	@GetMapping("/api/auth/history")
+	@GetMapping("/history")
 	@PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
 	public ResponseEntity<?> getLoginHistoryByUser(@RequestParam(value = "username", required = true) String username) {
-		LoginHistoryDTO loginHistoryDTO = userService.getUserLoginHistory(username);
-		if (loginHistoryDTO != null)
-			return ResponseEntity.ok(loginHistoryDTO);
-		else
-			return ResponseEntity.badRequest().body(new Response("400", "no history found"));
+		try {
+			LoginHistoryDTO loginHistoryDTO = userService.getUserLoginHistory(username);
+			if (loginHistoryDTO != null)
+				return ResponseEntity.ok(loginHistoryDTO);
+			else
+				return ResponseEntity.badRequest().body(new Response("400", "no history found"));
+		} catch (Exception e) {
+			log.error("error in fetching history", e);
+			return ResponseEntity.badRequest().body(new Response("400", "fetching failed"));
+		}
 	}
 
-	@GetMapping("/api/auth/logged")
+	@GetMapping("/logged")
 	@PreAuthorize("hasRole('ADMIN')")
 	public ResponseEntity<?> getLoggedInUsers() {
-
-		return ResponseEntity.ok().body(adminService.getCurrentLoggedInUsers());
+		try {
+			return ResponseEntity.ok().body(adminService.getCurrentLoggedInUsers());
+		} catch (Exception e) {
+			log.error("logged request failed", e);
+			return ResponseEntity.badRequest().body(new Response("400", "request failed"));
+		}
 	}
 
-	@GetMapping("/api/auth/registered")
+	@GetMapping("/registered")
 	@PreAuthorize("hasRole('ADMIN')")
 	public ResponseEntity<?> getRegisteredUsers() {
-
-		return ResponseEntity.ok().body(adminService.getRegisteredUsers());
+		try {
+			return ResponseEntity.ok().body(adminService.getRegisteredUsers());
+		} catch (Exception e) {
+			log.error("registered request failed", e);
+			return ResponseEntity.badRequest().body(new Response("400", "request failed"));
+		}
 	}
 
-	@GetMapping("/api/auth/logout")
+	@GetMapping("/logout")
 	@PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
 	public ResponseEntity<?> signoutUser(@RequestParam(value = "username", required = true) String username) {
-		if (userService.logoutUserByUserName(username))
-			return ResponseEntity.ok().body(new Response("200", "logout successfull"));
-		else
-			return ResponseEntity.badRequest().body(new Response("400", "couldn't delete"));
+		try {
+			if (userService.logoutUserByUserName(username))
+				return ResponseEntity.ok().body(new Response("200", "logout successfull"));
+			else
+				return ResponseEntity.badRequest().body(new Response("400", "couldn't delete"));
+		} catch (Exception e) {
+			log.error("request failed", e);
+			return ResponseEntity.badRequest().body(new Response("400", "request failed"));
+		}
+
 	}
 
 }

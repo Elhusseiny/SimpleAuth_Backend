@@ -7,10 +7,12 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.web.servlet.support.SpringBootServletInitializer;
+import org.springframework.cache.annotation.EnableCaching;
 
 import com.qeema.model.User;
 import com.qeema.respositories.UserRepository;
 
+@EnableCaching
 @SpringBootApplication
 public class SimpleAuthApplication extends SpringBootServletInitializer implements CommandLineRunner {
 
