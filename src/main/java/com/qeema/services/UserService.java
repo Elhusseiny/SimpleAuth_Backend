@@ -12,6 +12,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import com.qeema.dto.LoginHistoryDTO;
+import com.qeema.dto.LoginRequestDTO;
 import com.qeema.dto.SignUpRequestDTO;
 import com.qeema.model.LoggedInUsers;
 import com.qeema.model.LoginHistory;
@@ -120,8 +121,9 @@ public class UserService {
 		Boolean isDeleted = false; 
 		User user = userRepository.findOneByUsername(username);
 		if (username != null)
-			isDeleted =  ( loggedInUsersRepository.deletebyUserId(user.getId()) != 0 );
-		return isDeleted ;
+			loggedInUsersRepository.deletebyUser(user);
+		return !isDeleted;
+		
 		
 	}
 

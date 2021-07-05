@@ -25,9 +25,9 @@ public interface LoggedInUsersRepository extends JpaRepository<LoggedInUsers, Lo
 	public List<LoggedInUsers> findAll() ;
 	@Modifying
     @Transactional
-	@Query(value = "delete logged_in_users from logged_in_users  inner join users on logged_in_users.user_id = users.id where logged_in_users.user_id = :id", nativeQuery = true )
-	public int deletebyUserId(@Param("id") long id) ;
-	
+	@Query(value = "delete from LoggedInUsers l where l.user = :user")
+	void deletebyUser(@Param("user") User user) ;
+	 ;
 	// public Long deletebyUser(User user) ; not working
 	
 	
